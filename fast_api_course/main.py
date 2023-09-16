@@ -2,6 +2,9 @@ import requests, jwt
 from fastapi import FastAPI, Cookie, Response, Header, Request, Depends, HTTPException
 from datetime import datetime
 import random, string
+
+from fastapi.datastructures import Default
+
 import model
 import schemas
 from starlette import status
@@ -11,8 +14,8 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials, OAuth2PasswordBear
 from typing import Annotated
 from datetime import datetime
 from database import SessionLocal, engine
-print(4)
 
+print(4)
 
 app = FastAPI()
 print(0)
@@ -78,6 +81,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 # Конечная точка для получения информации о пользователе по ID
 @app.get("/users/{user_id}")
@@ -224,7 +228,8 @@ def get_user_from_token(token: str = Depends(oauth2_scheme)):
         print(token)
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         print(payload)
-        return payload.get("sub") # тут мы идем в полезную нагрузку JWT-токена и возвращаем утверждение о юзере (subject); обычно там еще можно взять "iss" - issuer/эмитент, или "exp" - expiration time - время 'сгорания' и другое, что мы сами туда кладем
+        return payload.get(
+            "sub")  # тут мы идем в полезную нагрузку JWT-токена и возвращаем утверждение о юзере (subject); обычно там еще можно взять "iss" - issuer/эмитент, или "exp" - expiration time - время 'сгорания' и другое, что мы сами туда кладем
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -244,13 +249,14 @@ def get_user(username: str):
     print(username)
     if username in USER_DATA:
         user_data = USER_DATA[username]
-        return {"USER": LoginUser(username=user_data['username'], password=user_data['password']), 'user_data': user_data}
+        return {"USER": LoginUser(username=user_data['username'], password=user_data['password']),
+                'user_data': user_data}
     return None
 
 
 # Роут для получения JWT-токена (так работает логин)
 @app.post("/token/")
-def login(user_data: Annotated[OAuth2PasswordRequestForm, Depends()]): # тут логинимся через форму
+def login(user_data: Annotated[OAuth2PasswordRequestForm, Depends()]):  # тут логинимся через форму
     print(user_data.username)
     user_data_from_db = get_user(user_data.username)
     print(user_data_from_db)
@@ -267,7 +273,8 @@ def login(user_data: Annotated[OAuth2PasswordRequestForm, Depends()]): # тут 
     print(access_token)
     response = Response()
     response.headers["Authorization"] = f"Bearer {access_token}"
-    return {"access_token": access_token}, response  # тут мы добавляем полезную нагрузку в токен, и говорим, что "sub" содержит значение username
+    return {
+        "access_token": access_token}, response  # тут мы добавляем полезную нагрузку в токен, и говорим, что "sub" содержит значение username
 
 
 # Защищенный роут для админов, когда токен уже получен
@@ -307,7 +314,7 @@ async def get_protected_information(current_user: str = Depends(get_user_from_to
 
 
 @app.get('/update')
-async def check_read(current_user:str = Depends(get_user_from_token)):
+async def check_read(current_user: str = Depends(get_user_from_token)):
     user_data = get_user(current_user)
     if user_data["user_data"]['role'] == "quest":
         raise HTTPException(status_code=403, detail="Forbidden")
@@ -324,5 +331,42 @@ async def create_ToDo(todo: schemas.ToDo, db: Session = Depends(get_db)):
     db.add(db_todo)
     db.commit()
     db.refresh(db_todo)
-    print(db.query(model.ToDo).all())
     return db_todo
+
+
+@app.get('/get_ToDo/{todo_id}', response_model=schemas.ToDo)
+async def get_ToDO(todo_id: int, db: Session = Depends(get_db)):
+    todo_item = db.get(entity=model.ToDo, ident=todo_id)
+    if not todo_item:
+        raise HTTPException(status_code=404, detail="ToDo item not found")
+    return todo_item
+
+
+@app.put('/update_ToDo/{todo_id}', response_model=schemas.ToDo)
+async def update_ToDo(todo_id: int, todo_data: schemas.ToDo, db: Session = Depends(get_db)):
+    todo_item = db.get(entity=model.ToDo, ident=todo_id)
+    print(todo_item.title)
+    print(todo_data)
+    todo_item.title = todo_data.title
+    todo_item.description = todo_data.description
+    todo_item.completed = todo_data.completed
+    db.commit()
+    db.refresh(todo_item)
+    # Can be like this
+    # for key, value in todo_data.items():
+    #   if hasattr(todo_item, key) and value is not None:
+    #       setattr(todo_item, key, value)
+    # db.refresh(todo_item)
+
+    return todo_item
+
+
+@app.patch('/complete_ToDo/{todo_id}', response_model=schemas.ToDo)
+async def complete_ToDo(todo_id: int, db: Session = Depends(get_db)):
+    todo_item = db.get(entity=model.ToDo, ident=todo_id)
+    if not todo_item:
+        raise HTTPException(status_code=404, detail="ToDo item not found")
+    todo_item.completed = True
+    db.commit()
+    db.refresh(todo_item)
+    return todo_item
