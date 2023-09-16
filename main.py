@@ -166,7 +166,7 @@ async def login(login_user: LoginUser, response: Response):
 
 
 @app.get('/user')
-async def register(session_token: str | None):
+async def register(session_token: str or None):
     print(users.keys())
     for s_token in users.keys():
         if s_token == session_token:
@@ -370,3 +370,29 @@ async def complete_ToDo(todo_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(todo_item)
     return todo_item
+
+
+@app.get('/check_ToDo/')
+async def delete_completed_ToDo(db: Session = Depends(get_db)):
+    count_completed = 0
+    count_failed = 0
+    completed_tasks = []
+    failed_tasks = []
+    for item in db.query(model.ToDo).all():
+        if item.completed:
+            completed_tasks.append(item)
+            count_completed += 1
+        else:
+            failed_tasks.append(item)
+            count_failed += 1
+    return {"message": f"You completed {count_completed} tasks and fail {count_failed} tasks. Here they are:",
+            "completed_tasks": completed_tasks,
+            "failed_tasks": failed_tasks}
+
+
+@app.delete('/delete_ToDo/{todo_id}')
+async def delete_ToDo(todo_id: int, db: Session = Depends(get_db)):
+    task = db.query(model.ToDo).get(ident=todo_id)
+    db.delete(task)
+    db.commit()
+    return {"message": "Task has been deleted"}
