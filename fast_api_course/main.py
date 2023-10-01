@@ -325,8 +325,8 @@ async def create_ToDo(todo: schemas.ToDo, db: Session = Depends(get_db)):
             return item
     db_todo = model.ToDo(title=todo_item.title, description=todo.description, completed=todo_item.completed)
     db.add(db_todo)
-    await db.commit()
-    await db.refresh(db_todo)
+    db.commit()
+    db.refresh(db_todo)
     return db_todo
 
 
@@ -344,8 +344,8 @@ async def update_ToDo(todo_id: int, todo_data: schemas.ToDo, db: Session = Depen
     todo_item.title = todo_data.title
     todo_item.description = todo_data.description
     todo_item.completed = todo_data.completed
-    await db.commit()
-    await db.refresh(todo_item)
+    db.commit()
+    db.refresh(todo_item)
     # Can be like this
     # for key, value in todo_data.items():
     #   if hasattr(todo_item, key) and value is not None:
@@ -361,14 +361,28 @@ async def complete_ToDo(todo_id: int, db: Session = Depends(get_db)):
     if not todo_item:
         raise HTTPException(status_code=404, detail="ToDo item not found")
     todo_item.completed = True
-    await db.commit()
-    await db.refresh(todo_item)
+    db.commit()
+    db.refresh(todo_item)
     return todo_item
+
+@app.get('/check_ToDo')
+async def check_ToDo(db: Session = Depends(get_db)):
+    completed_tasks = []
+    uncompleted_tasks = []
+    for task in db.query(model.ToDo).all():
+        if task.completed:
+            completed_tasks.append(task)
+        else:
+            uncompleted_tasks.append(task)
+    return {'message': f"You have {len(completed_tasks)} completed tasks, {len(uncompleted_tasks)} uncompleted",
+            'completed_tasks': completed_tasks,
+            'uncompleted_tasks': uncompleted_tasks}
+
 @app.delete('/delete_ToDo/{todo_id}', response_model=schemas.ToDo)
 async def delete_ToDo(todo_id: int, db: Session = Depends(get_db)):
     todo_item = db.get(entity=model.ToDo, ident=todo_id)
     if not todo_item:
         raise HTTPException(status_code=404, detail="ToDo item not found")
     db.delete(todo_item)
-    await db.commit()
+    db.commit()
     return {"message": "Task was deleted."}
