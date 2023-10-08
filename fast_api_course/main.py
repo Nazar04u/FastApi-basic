@@ -1,3 +1,4 @@
+import bcrypt
 import requests, jwt
 from fastapi import FastAPI, Cookie, Response, Header, Request, Depends, HTTPException
 import random, string
@@ -444,3 +445,15 @@ async def registration(user: schemas.User, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_user)
     return db_user
+
+
+@app.post('/login_user', response_model=schemas.User)
+async def login(username: str, password: str, db: Session = Depends(get_db)):
+    user = db.query(model.User).filter(model.User.username == username).first()
+    if user:
+        hx_password = user.password.split(',')[0].encode('utf-8')[1:]
+        salt = user.password.split(',')[1].encode('utf-8')[:-1]
+        if bcrypt.checkpw(password.encode('utf-8'), hx_password):
+            return user
+    else:
+        return {"message": "Invalid data"}

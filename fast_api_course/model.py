@@ -48,15 +48,11 @@ class User(Base):
         if 8 <= len(password) <= 16:
             salt = bcrypt.gensalt()  # Generate a salt (this is random)
             hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
-            return hashed_password
+            return hashed_password.decode('utf-8'), salt.decode('utf-8')
         raise ValueError("Invalid password")
 
     @validates('telephone_number')
     def validate_tel_number(self, key, number):
-        print(len(number))
-        print(number[0])
-        print(number[1:])
-        print(number[1:].isdigit())
         if len(number) == 13 and number[0] == '+' and number[1:].isdigit():
             return number
         raise ValueError("Invalid telephone number")
