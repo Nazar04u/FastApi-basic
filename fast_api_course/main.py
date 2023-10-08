@@ -1,6 +1,9 @@
 import requests, jwt
 from fastapi import FastAPI, Cookie, Response, Header, Request, Depends, HTTPException
 import random, string
+
+from fastapi.exceptions import RequestValidationError
+
 import model
 import schemas
 from starlette import status
@@ -10,13 +13,10 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials, OAuth2PasswordBear
 from typing import Annotated
 from datetime import datetime
 from database import SessionLocal, engine
-
-print(4)
+from fastapi.responses import JSONResponse
 
 app = FastAPI()
-print(0)
 model.Base.metadata.create_all(bind=engine)
-print(5)
 security = HTTPBasic()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 SECRET_KEY = 'The_Walking_Dead'
@@ -77,6 +77,38 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+class CustomExceptionA(HTTPException):
+    def __init__(self, message: str, status_code: int = 301):
+        super().__init__(status_code=status_code)
+        self.message = message
+
+
+class CustomExceptionB(HTTPException):
+    def __init__(self, message: str, status_code: int = 400):
+        super().__init__(status_code=status_code)
+        self.message = message
+
+
+async def custom_request_validation_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=422,
+        content={"message": "Custom Request Validation Error", "errors": exc.errors()},
+    )
+
+
+app.add_exception_handler(RequestValidationError, custom_request_validation_exception_handler)
+
+
+@app.exception_handler(CustomExceptionA)
+async def custom_exception_A(request: Request, exc: CustomExceptionA):
+    return JSONResponse(status_code=exc.status_code, content={'message': exc.message})
+
+
+@app.exception_handler(CustomExceptionB)
+async def custom_exception_A(request: Request, exc: CustomExceptionA):
+    return JSONResponse(status_code=exc.status_code, content={'message': exc.message})
 
 
 # Конечная точка для получения информации о пользователе по ID
@@ -365,6 +397,7 @@ async def complete_ToDo(todo_id: int, db: Session = Depends(get_db)):
     db.refresh(todo_item)
     return todo_item
 
+
 @app.get('/check_ToDo')
 async def check_ToDo(db: Session = Depends(get_db)):
     completed_tasks = []
@@ -378,6 +411,7 @@ async def check_ToDo(db: Session = Depends(get_db)):
             'completed_tasks': completed_tasks,
             'uncompleted_tasks': uncompleted_tasks}
 
+
 @app.delete('/delete_ToDo/{todo_id}', response_model=schemas.ToDo)
 async def delete_ToDo(todo_id: int, db: Session = Depends(get_db)):
     todo_item = db.get(entity=model.ToDo, ident=todo_id)
@@ -386,3 +420,27 @@ async def delete_ToDo(todo_id: int, db: Session = Depends(get_db)):
     db.delete(todo_item)
     db.commit()
     return {"message": "Task was deleted."}
+
+
+@app.get('/check_EXC_A')
+async def check_EXC_A():
+    raise CustomExceptionA(message="Exception_A working")
+
+
+@app.get('/check_EXC_B')
+async def check_EXC_B():
+    raise CustomExceptionB(message="Exception_B working")
+
+
+@app.post('/register_user', response_model=schemas.User)
+async def registration(user: schemas.User, db: Session = Depends(get_db)):
+    correct_user = schemas.User(**user.dict())
+    db_user = model.User(age=correct_user.age,
+                         username=correct_user.username,
+                         email=correct_user.email,
+                         password=correct_user.password,
+                         telephone_number=correct_user.phone)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
