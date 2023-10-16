@@ -2,8 +2,11 @@ import bcrypt
 import requests, jwt
 from fastapi import FastAPI, Cookie, Response, Header, Request, Depends, HTTPException
 import random, string
-
-from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler, http_exception_handler
+from fastapi.exceptions import RequestValidationError, ValidationException
+from pydantic import BaseModel
+from pydantic_settings import BaseSettings
+from starlette.middleware.base import BaseHTTPMiddleware
 
 import model
 import schemas
@@ -11,10 +14,30 @@ from starlette import status
 from sqlalchemy.orm import Session
 from models.models import Feedback, User, Product, FilterProduct, LoginUser
 from fastapi.security import HTTPBasic, HTTPBasicCredentials, OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from typing import Annotated
+from typing import Annotated, List
 from datetime import datetime
 from database import SessionLocal, engine
 from fastapi.responses import JSONResponse
+
+# For localization
+
+from fastapi_localization import (
+    SystemLocalizationMiddleware,
+    http_exception_handler,
+    validation_exception_handler,
+    LocalizationRoute,
+    TranslatableStringField,
+    TranslateJsonResponse,
+)
+from fastapi_localization import lazy_gettext as _
+
+
+class Settings(BaseSettings):
+    localization_dir: str = 'locales'
+    localization_domain: str = 'base'
+
+
+settings = Settings()
 
 app = FastAPI()
 model.Base.metadata.create_all(bind=engine)
@@ -22,6 +45,21 @@ security = HTTPBasic()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 SECRET_KEY = 'The_Walking_Dead'
 ALGORITHM = 'HS256'
+
+# register localization middleware
+localization_middleware = SystemLocalizationMiddleware(
+    domain=settings.localization_domain,
+    translation_dir=settings.localization_dir,
+)
+app.add_middleware(BaseHTTPMiddleware, dispatch=localization_middleware)
+
+# register error handlers for localization errors
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+print(1)
+app.router.route_class = LocalizationRoute
+print(2)
+
 
 # Пример пользовательских данных (для демонстрационный целей)
 fake_users = {
@@ -71,7 +109,7 @@ USER_DATA = {'admin': {'username': 'admin', 'password': 'admin', 'role': 'admin'
              'user': {'username': 'user', 'password': 'user', 'role': "user", 'access': ['read', 'update']},
              'quest': {'username': 'quest', 'password': 'quest', 'role': "quest", 'access': ['read', 'update']}}
 
-
+print(3)
 def get_db():
     db = SessionLocal()
     try:
@@ -457,3 +495,50 @@ async def login(username: str, password: str, db: Session = Depends(get_db)):
             return user
     else:
         return {"message": "Invalid data"}
+
+
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request, exc):
+    print(f"OMG! An HTTP error!: {repr(exc)}")
+    return await http_exception_handler(request, exc)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    print(f"OMG! The client sent invalid data!: {exc}")
+    return await request_validation_exception_handler(request, exc)
+
+
+@app.get("/items/{item_id}")
+async def read_item(item_id: int):
+    if item_id == 3:
+        raise RequestValidationError("Not three")
+    return {"item_id": item_id}
+
+
+class UserNotFoundException(HTTPException):
+    def __init__(self, message: str, error_code: int, **headers):
+        super().__init__(status_code=404, headers=headers)
+        self.message = message
+        self.error_code = error_code
+
+
+@app.exception_handler(UserNotFoundException)
+async def http_user_not_found_exc(request: Request, exc: schemas.ErrorResponse, **kwargs):
+    return JSONResponse(content={"error": exc.message, "error_code": exc.error_code}, status_code=exc.status_code,
+                        headers=exc.headers['headers'])
+
+
+@app.get('/find_user/{user_id}')
+async def find_user(user_id: int, db: Session = Depends(get_db)):
+    try:
+        user = db.get(entity=model.User, ident=user_id)
+        if user is not None:
+            return user
+        else:
+            error_time = datetime.now()
+            raise UserNotFoundException("User is not found", 122)
+    except UserNotFoundException:
+        end_time = (datetime.now() - error_time).total_seconds()
+        raise UserNotFoundException("User is not found", 122, headers={"X_Time": str(end_time)})
+

@@ -1,5 +1,6 @@
 from typing import Optional
 
+from fastapi_localization import TranslatableStringField
 from pydantic import BaseModel, conint, constr, EmailStr
 
 
@@ -25,6 +26,7 @@ class Product(BaseModel):
 class ErrorResponse(BaseModel):
     status: int
     message: str
+    error_code: int
 
 
 class User(BaseModel):
@@ -36,3 +38,12 @@ class User(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class LanguageTranslatableSchema(BaseModel):
+    code: str
+    title: TranslatableStringField
+
+    class Config:
+        arbitrary_types_allowed = True
+
