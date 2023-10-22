@@ -53,6 +53,8 @@ class User(Base):
 
     @validates('telephone_number')
     def validate_tel_number(self, key, number):
+        print(number)
+        print(key)
         if len(number) == 13 and number[0] == '+' and number[1:].isdigit():
             return number
         raise ValueError("Invalid telephone number")

@@ -160,3 +160,4 @@ cython_debug/
 #.idea/
 alembic/
 config.py
+.pytest_cache

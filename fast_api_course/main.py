@@ -1,35 +1,33 @@
-import bcrypt
-import requests, jwt
-from fastapi import FastAPI, Cookie, Response, Header, Request, Depends, HTTPException
-import random, string
-from fastapi.exception_handlers import request_validation_exception_handler, http_exception_handler
-from fastapi.exceptions import RequestValidationError, ValidationException
-from pydantic import BaseModel
-from pydantic_settings import BaseSettings
-from starlette.middleware.base import BaseHTTPMiddleware
-
 import model
 import schemas
-from starlette import status
-from sqlalchemy.orm import Session
-from models.models import Feedback, User, Product, FilterProduct, LoginUser
-from fastapi.security import HTTPBasic, HTTPBasicCredentials, OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from typing import Annotated, List
-from datetime import datetime
 from database import SessionLocal, engine
+from models.models import Feedback, User, Product, FilterProduct, LoginUser
+
+import random
+import string
+from datetime import datetime
+from typing import Annotated
+
+import bcrypt
+import jwt
+from fastapi import FastAPI, Response, Header, Request, Depends, HTTPException
+from fastapi.exception_handlers import request_validation_exception_handler, http_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-
-# For localization
-
+from fastapi.security import HTTPBasic, HTTPBasicCredentials, OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi_localization import (
     SystemLocalizationMiddleware,
     http_exception_handler,
     validation_exception_handler,
     LocalizationRoute,
-    TranslatableStringField,
-    TranslateJsonResponse,
 )
-from fastapi_localization import lazy_gettext as _
+from pydantic_settings import BaseSettings
+from sqlalchemy.orm import Session
+from starlette import status
+from starlette.middleware.base import BaseHTTPMiddleware
+
+
+# For localization
 
 
 class Settings(BaseSettings):
@@ -59,7 +57,6 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 print(1)
 app.router.route_class = LocalizationRoute
 print(2)
-
 
 # Пример пользовательских данных (для демонстрационный целей)
 fake_users = {
@@ -110,6 +107,8 @@ USER_DATA = {'admin': {'username': 'admin', 'password': 'admin', 'role': 'admin'
              'quest': {'username': 'quest', 'password': 'quest', 'role': "quest", 'access': ['read', 'update']}}
 
 print(3)
+
+
 def get_db():
     db = SessionLocal()
     try:
@@ -451,7 +450,7 @@ async def check_ToDo(db: Session = Depends(get_db)):
             'uncompleted_tasks': uncompleted_tasks}
 
 
-@app.delete('/delete_ToDo/{todo_id}', response_model=schemas.ToDo)
+@app.delete('/delete_ToDo/{todo_id}')
 async def delete_ToDo(todo_id: int, db: Session = Depends(get_db)):
     todo_item = db.get(entity=model.ToDo, ident=todo_id)
     if not todo_item:
@@ -482,7 +481,7 @@ async def registration(user: schemas.User, db: Session = Depends(get_db)):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    return db_user
+    return correct_user
 
 
 @app.post('/login_user', response_model=schemas.User)
@@ -542,3 +541,11 @@ async def find_user(user_id: int, db: Session = Depends(get_db)):
         end_time = (datetime.now() - error_time).total_seconds()
         raise UserNotFoundException("User is not found", 122, headers={"X_Time": str(end_time)})
 
+
+# For simple test
+@app.get("/sum/")
+def calculate_sum(a: int, b: int):
+    return {"result": a + b}
+
+
+print(0)
