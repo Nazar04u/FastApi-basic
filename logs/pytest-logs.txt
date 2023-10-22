@@ -1,0 +1,16 @@
+DEBUG    asyncio:proactor_events.py:626 Using proactor: IocpProactor
+INFO     httpx:_client.py:1013 HTTP Request: POST http://testserver/register_user "HTTP/1.1 200 OK"
+DEBUG    asyncio:proactor_events.py:626 Using proactor: IocpProactor
+INFO     httpx:_client.py:1013 HTTP Request: GET http://testserver/sum/?a=5&b=10 "HTTP/1.1 200 OK"
+DEBUG    asyncio:proactor_events.py:626 Using proactor: IocpProactor
+INFO     httpx:_client.py:1013 HTTP Request: GET http://testserver/sum/?a=-8&b=-3 "HTTP/1.1 200 OK"
+DEBUG    asyncio:proactor_events.py:626 Using proactor: IocpProactor
+INFO     httpx:_client.py:1013 HTTP Request: GET http://testserver/sum/?a=0&b=7 "HTTP/1.1 200 OK"
+DEBUG    asyncio:proactor_events.py:626 Using proactor: IocpProactor
+INFO     httpx:_client.py:1013 HTTP Request: POST http://testserver/login_user/?username=Negan5&password=negan123 "HTTP/1.1 307 Temporary Redirect"
+DEBUG    asyncio:proactor_events.py:626 Using proactor: IocpProactor
+INFO     httpx:_client.py:1013 HTTP Request: POST http://testserver/login_user?username=Negan5&password=negan123 "HTTP/1.1 200 OK"
+DEBUG    asyncio:proactor_events.py:626 Using proactor: IocpProactor
+INFO     httpx:_client.py:1013 HTTP Request: GET http://testserver/find_user/26 "HTTP/1.1 200 OK"
+DEBUG    asyncio:proactor_events.py:626 Using proactor: IocpProactor
+INFO     httpx:_client.py:1013 HTTP Request: DELETE http://testserver/delete_ToDo/2 "HTTP/1.1 200 OK"
