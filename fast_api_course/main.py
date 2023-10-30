@@ -1,3 +1,5 @@
+import requests
+
 import model
 import schemas
 from database import SessionLocal, engine
@@ -25,6 +27,7 @@ from pydantic_settings import BaseSettings
 from sqlalchemy.orm import Session
 from starlette import status
 from starlette.middleware.base import BaseHTTPMiddleware
+from requests import request
 
 
 # For localization
@@ -542,10 +545,40 @@ async def find_user(user_id: int, db: Session = Depends(get_db)):
         raise UserNotFoundException("User is not found", 122, headers={"X_Time": str(end_time)})
 
 
+@app.delete('/delete_user/{user_id}')
+async def delete_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.get(entity=model.User, ident=user_id)
+    if user:
+        db.delete(user)
+        db.commit()
+        return {"message": "User is deleted"}
+    else:
+        raise UserNotFoundException("User is not found", 122)
+
+
 # For simple test
 @app.get("/sum/")
 def calculate_sum(a: int, b: int):
     return {"result": a + b}
 
 
-print(0)
+def get_data_from_api():
+    External_URL = 'https://catfact.ninja/breeds?limit=4'
+    response = requests.get(External_URL)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return None
+
+
+def process_data(data: dict):
+    if data:
+        return {'data': data.get('data')}
+    else:
+        return None
+
+
+@app.get('/Fetch_data_from_API')
+def get_data():
+    data = get_data_from_api()
+    return process_data(data)
