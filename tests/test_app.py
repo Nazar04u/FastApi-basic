@@ -34,7 +34,7 @@ client = TestClient(app)
 
 
 def test_delete_user():
-    response = client.delete(f'/delete_user/15')
+    response = client.delete(f'/delete_user/25')
     assert response.status_code == 200
     assert response.json() == {"message": "User is deleted"}
 
@@ -55,6 +55,13 @@ def test_register_user():
         "password": "negan123",
         'phone': '+380991123411'}
 
+    user_data = {'age': 44,
+                 'email': "negan1@gmail.com",
+                 "password": "negan123",
+                 'phone': '+380991123411'}
+    response = client.post('/register_user', json=user_data)
+    assert response.status_code == 422
+
 
 def test_calculate_sum():
     response = client.get("/sum/?a=5&b=10")
@@ -65,7 +72,6 @@ def test_calculate_sum():
     assert response.status_code == 200
     assert response.json() == {"result": -11}
 
-    # Test case 3: ноль и положительное число
     response = client.get("/sum/?a=0&b=7")
     assert response.status_code == 200
     assert response.json() == {"result": 7}
@@ -81,6 +87,8 @@ def test_login_user():
         "password": "($2b$12$H4WgaNwpQeem12L96ne9F.YR92UjJxUn0hrf/l.JZ6nEPm9tcLcVS,$2b$12$H4WgaNwpQeem12L96ne9F.)",
         "phone": "Unknown"
     }
+    response = client.post('/login_user/?username=Rick&password=negan')
+    assert response.status_code == 400
 
 
 def test_get_user():
@@ -94,6 +102,24 @@ def test_get_user():
         "telephone_number": "+380991123421",
         'id': 12
     }
+    response = client.get('/find_user/1')
+    assert response.status_code == 404
+
+
+def test_create_ToDo():
+    todo_data = {"title": 'Train',
+                 "description": "Legs, Shoulders",
+                 "completed": True}
+    response = client.post('/create_ToDo', json=todo_data)
+    assert response.status_code == 200
+    assert response.json() == {"title": 'Train',
+                               "description": "Legs, Shoulders",
+                               "completed": True}
+
+    todo_data = {"description": 'Train',
+                 'completed': False}
+    response = client.post('/create_ToDo', json=todo_data)
+    assert response.status_code == 422
 
 
 # Test mocking

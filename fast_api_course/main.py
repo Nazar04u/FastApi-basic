@@ -14,7 +14,7 @@ import bcrypt
 import jwt
 from fastapi import FastAPI, Response, Header, Request, Depends, HTTPException
 from fastapi.exception_handlers import request_validation_exception_handler, http_exception_handler
-from fastapi.exceptions import RequestValidationError
+from fastapi.exceptions import RequestValidationError, ResponseValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials, OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi_localization import (
@@ -489,14 +489,17 @@ async def registration(user: schemas.User, db: Session = Depends(get_db)):
 
 @app.post('/login_user', response_model=schemas.User)
 async def login(username: str, password: str, db: Session = Depends(get_db)):
-    user = db.query(model.User).filter(model.User.username == username).first()
+    try:
+        user = db.query(model.User).filter(model.User.username == username).first()
+    except ResponseValidationError:
+        errors = ["User is not found"]
     if user:
         hx_password = user.password.split(',')[0].encode('utf-8')[1:]
         salt = user.password.split(',')[1].encode('utf-8')[:-1]
         if bcrypt.checkpw(password.encode('utf-8'), hx_password):
             return user
     else:
-        return {"message": "Invalid data"}
+        raise HTTPException(status_code=400)
 
 
 @app.exception_handler(HTTPException)
